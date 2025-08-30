@@ -1,0 +1,46 @@
+import fitz  # PyMuPDF
+
+# Ruta del PDF que ya editaste antes
+input_pdf_path = "estado_cuenta_bancolombia_original_editado.pdf"
+output_pdf_path = "estado_cuenta_bancolombia_final.pdf"
+
+# Abrir PDF
+doc = fitz.open(input_pdf_path)
+
+# Función para ajustar fechas al rango abril-junio 2025
+def ajustar_fecha(fecha):
+    try:
+        dia, mes = fecha.split("/")
+        dia = int(dia)
+        mes = int(mes)
+        if mes in [9, 10, 11, 12]:
+            mes = (mes - 9) + 4
+            if mes > 6:
+                mes = 6
+        return f"{dia}/{mes:02d}"
+    except:
+        return fecha
+
+# Buscar la línea con "FIN ESTADO DE CUENTA" y modificar su fecha
+for page in doc:
+    blocks = page.get_text("blocks")
+    for b in blocks:
+        if "FIN ESTADO DE CUENTA" in b[4]:
+            line = b[4]
+            parts = line.split()
+            new_parts = []
+            for p in parts:
+                if "/" in p:  # detectar fechas
+                    p = ajustar_fecha(p)
+                new_parts.append(p)
+            new_line = " ".join(new_parts)
+
+            # Redactar (borrar) y volver a escribir el texto
+            page.add_redact_annot(b[:4])   # marcar área
+            page.apply_redactions()        # aplicar borrado
+            page.insert_text(b[:2], new_line, fontsize=8, color=(0,0,0))
+
+# Guardar PDF editado
+doc.save(output_pdf_path)
+
+print("PDF final generado en:", output_pdf_path)
